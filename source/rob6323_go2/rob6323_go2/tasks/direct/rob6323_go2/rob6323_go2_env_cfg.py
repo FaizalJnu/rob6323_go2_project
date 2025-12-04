@@ -46,6 +46,17 @@ class Rob6323Go2EnvCfg(DirectRLEnvCfg):
     feet_clearance_reward_scale = -30.0
     tracking_contacts_shaped_force_reward_scale = 4.0
 
+    # In Rob6323Go2EnvCfg
+
+    # Additional reward scales
+    orient_reward_scale = -5.0
+    lin_vel_z_reward_scale = -0.02
+    dof_vel_reward_scale = -0.0001
+    ang_vel_xy_reward_scale = -0.001
+
+    feet_clearance_reward_scale = -30.0
+    tracking_contacts_shaped_force_reward_scale = 4.0
+    
     # simulation
     sim: SimulationCfg = SimulationCfg(
         dt=1 / 200,
@@ -103,4 +114,3 @@ class Rob6323Go2EnvCfg(DirectRLEnvCfg):
     lin_vel_reward_scale = 1.0
     yaw_rate_reward_scale = 0.5
     action_rate_reward_scale = -0.1
-
