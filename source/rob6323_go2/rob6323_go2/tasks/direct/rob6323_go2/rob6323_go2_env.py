@@ -64,14 +64,18 @@ class Rob6323Go2Env(DirectRLEnv):
         self.motor_offsets = torch.zeros(self.nums_envs, 12, device=self.device)
         self.torque_limits = cfg.torch_limits
 
-        foot_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
-        self._feet_ids, _ = self.robot.find_bodies(foot_names)
-        for name in foot_names:
-            sensor_ids, _ = self._contact_sensor.find_bodies(name)
-            self._feet_ids_sensor.append(sensor_ids[0])
-        self._feet_ids_sensor = torch.tensor(self._feet_ids_sensor, device=self.device, dtype=torch.long)
+	# Get specific body indices
+	foot_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
+	self._feet_ids = []
+	for name in foot_names:
+    	id_list, _ = self.robot.find_bodies(name)
+        self._feet_ids.append(id_list[0])
+	# 2) Indices in the CONTACT SENSOR (for forces)
+	self._feet_ids_sensor = []
+	for name in foot_names:
+    	id_list, _ = self._contact_sensor.find_bodies(name)
+    	self._feet_ids_sensor.append(id_list[0])
 
-    
         self.gait_indices = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
         self.clock_inputs = torch.zeros(self.num_envs, 4, dtype=torch.float, device=self.device, requires_grad=False)
         self.desired_contact_sales = torch.zeros(self.num_envs, 4, dtype=torch.float, device=self.device, requires_grad=False)
@@ -170,7 +174,7 @@ class Rob6323Go2Env(DirectRLEnv):
 
         rew_lin_vel_z = torch.square(self.robot.data.root_lin_vel_b[:,2])
 
-        rew_dof_vel = torch.sum(torch.square(self.robot.data.joint_val), dim=1) 
+        rew_dof_vel = torch.sum(torch.square(self.robot.data.joint_vel), dim=1) 
 
         rew_ang_vel_xy = torch.sum(torch.square(self.robot.data.root_ang_vel_b[:, :2]), dim=1)
 
@@ -178,7 +182,7 @@ class Rob6323Go2Env(DirectRLEnv):
 
         contact_forces_z = self._contact_sensor.data.net_forces_w[:, self._feet_ids_sensor, 2]
 
-        contact_targets = self._step_contact_targets
+        contact_targets = self._step_contact_targets()
 
         target_height = 0.1
 
@@ -205,8 +209,8 @@ class Rob6323Go2Env(DirectRLEnv):
         self._step_contact_targets()
         rew_raibert_heuristic = self._reward_raibert_heuristic()  
         rewards = {
-            "track_lin_vel_xy_exp": lin_vel_error_mapped * self.cfg.lin_vel_reward_scale * self.step_dt,
-            "track_ang_vel_z_exp": yaw_rate_error_mapped * self.cfg.yaw_rate_reward_scale * self.step_dt,
+            "track_lin_vel_xy_exp": lin_vel_error_mapped * self.cfg.lin_vel_reward_scale,
+            "track_ang_vel_z_exp": yaw_rate_error_mapped * self.cfg.yaw_rate_reward_scale,
             "rew_action_rate": rew_action_rate * self.cfg.action_rate_reward_scale,
             "raibert_heuristic": rew_raibert_heuristic * self.cfg.raibert_heuristic_reward_scale,
 
