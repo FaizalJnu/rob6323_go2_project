@@ -11,8 +11,8 @@
 #SBATCH --account=rob_gy6323-2025fa
 #SBATCH --partition=g2-standard-12
 # -- CHANGED: Write logs to current directory so you can actually see them
-#SBATCH --output=/home/fr2471/logs/slurm_%j.out
-#SBATCH --error=/home/fr2471/logs/slurm_%j.err
+#SBATCH --output=slurm_%j.out
+#SBATCH --error=slurm_%j.err
 
 set -euo pipefail
 
