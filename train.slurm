@@ -66,6 +66,7 @@ echo "Running with args: $ISAAC_ARGS"
 # -------------------------------
 # Execution
 # -------------------------------
+export PYTHONUNBUFFERED=1
 singularity exec \
   --nv --containall \
   -B "${CACHE_ROOT}/kit-data:${DOCKER_ISAACSIM_ROOT_PATH}/kit/data:rw" \
