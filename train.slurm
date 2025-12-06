@@ -9,7 +9,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mail-type=END
 #SBATCH --account=rob_gy6323-2025fa
-#SBATCH --partition=g2-standard-12
+#SBATCH --partition=gpu_misc_v100
 # -- CHANGED: Write logs to current directory so you can actually see them
 #SBATCH --output=slurm_%j.out
 #SBATCH --error=slurm_%j.err
