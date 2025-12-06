@@ -24,40 +24,36 @@ class Rob6323Go2EnvCfg(DirectRLEnvCfg):
     # env
     decimation = 4
     episode_length_s = 20.0
-    # - spaces definition
+    
+    # Spaces
     action_scale = 0.25
     action_space = 12
-    observation_space = 48
+    # Ensure this matches your _get_observations() exactly!
+    observation_space = 52  # 48 + 4 clock inputs
     state_space = 0
     debug_vis = True
 
+    # Custom PD Control Params (Only needed if computing torque manually in Env)
     Kp = 20.0
     Kd = 0.5
-    torque_limits = 100.0
+    torque_limits = 23.5  # Fixed to match hardware limits
 
-    # In Rob6323Go2EnvCfg
-    base_height_min = 0.20  # Terminate if base is lower than 20cm
+    # Termination
+    base_height_min = 0.20
 
-    # In Rob6323Go2EnvCfg
-
-    observation_space = 48 + 4  # Added 4 for clock inputs
-
+    # Reward Scales
     raibert_heuristic_reward_scale = -10.0
     feet_clearance_reward_scale = -30.0
     tracking_contacts_shaped_force_reward_scale = 4.0
-
-    # In Rob6323Go2EnvCfg
-
-    # Additional reward scales
     orient_reward_scale = -5.0
     lin_vel_z_reward_scale = -0.02
     dof_vel_reward_scale = -0.0001
     ang_vel_xy_reward_scale = -0.001
+    lin_vel_reward_scale = 1.0
+    yaw_rate_reward_scale = 0.5
+    action_rate_reward_scale = -0.1
 
-    feet_clearance_reward_scale = -30.0
-    tracking_contacts_shaped_force_reward_scale = 4.0
-    
-    # simulation
+    # Simulation
     sim: SimulationCfg = SimulationCfg(
         dt=1 / 200,
         render_interval=decimation,
@@ -69,6 +65,8 @@ class Rob6323Go2EnvCfg(DirectRLEnvCfg):
             restitution=0.0,
         ),
     )
+    
+    # Terrain
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="plane",
@@ -82,35 +80,36 @@ class Rob6323Go2EnvCfg(DirectRLEnvCfg):
         ),
         debug_vis=False,
     )
-    # robot(s)
+    
+    # Robot
     robot_cfg: ArticulationCfg = UNITREE_GO2_CFG.replace(prim_path="/World/envs/env_.*/Robot")
     robot_cfg.actuators["base_legs"] = ImplicitActuatorCfg(
         joint_names_expr=[".*hip_joint", ".*thigh_joint", ".*calf_joint"],
         effort_limit=23.5,
         velocity_limit=30.0,
-        stiffness=0.0,
+        # WARNING: If using built-in PhysX PD, change these to > 0.
+        # If using manual PD in Python step(), 0.0 is correct.
+        stiffness=0.0, 
         damping=0.0,
     )
-    # scene
+
+    # Scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
+    
+    # Sensors
     contact_sensor: ContactSensorCfg = ContactSensorCfg(
         prim_path="/World/envs/env_.*/Robot/.*", history_length=3, update_period=0.005, track_air_time=True
     )
+    
+    # Visualization
     goal_vel_visualizer_cfg: VisualizationMarkersCfg = GREEN_ARROW_X_MARKER_CFG.replace(
         prim_path="/Visuals/Command/velocity_goal"
     )
-    """The configuration for the goal velocity visualization marker. Defaults to GREEN_ARROW_X_MARKER_CFG."""
-
     current_vel_visualizer_cfg: VisualizationMarkersCfg = BLUE_ARROW_X_MARKER_CFG.replace(
         prim_path="/Visuals/Command/velocity_current"
     )
-    """The configuration for the current velocity visualization marker. Defaults to BLUE_ARROW_X_MARKER_CFG."""
 
-    # Set the scale of the visualization markers to (0.5, 0.5, 0.5)
+    # Scale adjustments must happen inside __init__ or separate config block if strict,
+    # but Python class body execution allows this:
     goal_vel_visualizer_cfg.markers["arrow"].scale = (0.5, 0.5, 0.5)
     current_vel_visualizer_cfg.markers["arrow"].scale = (0.5, 0.5, 0.5)
-
-    # reward scales
-    lin_vel_reward_scale = 1.0
-    yaw_rate_reward_scale = 0.5
-    action_rate_reward_scale = -0.1

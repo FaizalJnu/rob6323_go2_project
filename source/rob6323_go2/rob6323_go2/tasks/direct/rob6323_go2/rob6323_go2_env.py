@@ -50,7 +50,7 @@ class Rob6323Go2Env(DirectRLEnv):
             ]
         }
 
-        self.last_actions = torch.zeros(self.num_envs, gym.spaces.flatdim(self.single_action_space), 3, dtype=self.device, requires_grad=False)
+        self.last_actions = torch.zeros(self.num_envs, gym.spaces.flatdim(self.single_action_space), 3, dtype=torch.float, device=self.device, requires_grad=False)
         # Get specific body indices
         self._base_id, _ = self._contact_sensor.find_bodies("base")
         # self._feet_ids, _ = self._contact_sensor.find_bodies(".*foot")
@@ -61,24 +61,24 @@ class Rob6323Go2Env(DirectRLEnv):
 
         self.Kp = torch.tensor([cfg.Kp] * 12, device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
         self.Kd = torch.tensor([cfg.Kd] * 12, device=self.device).unsqueeze(0).repeat(self.num_envs, 1)
-        self.motor_offsets = torch.zeros(self.nums_envs, 12, device=self.device)
-        self.torque_limits = cfg.torch_limits
+        self.motor_offsets = torch.zeros(self.num_envs, 12, device=self.device)
+        self.torque_limits = cfg.torque_limits
 
-	# Get specific body indices
-	foot_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
-	self._feet_ids = []
-	for name in foot_names:
-    	id_list, _ = self.robot.find_bodies(name)
-        self._feet_ids.append(id_list[0])
-	# 2) Indices in the CONTACT SENSOR (for forces)
-	self._feet_ids_sensor = []
-	for name in foot_names:
-    	id_list, _ = self._contact_sensor.find_bodies(name)
-    	self._feet_ids_sensor.append(id_list[0])
+        # Get specific body indices
+        foot_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
+        self._feet_ids = []
+        for name in foot_names:
+            id_list, _ = self.robot.find_bodies(name)
+            self._feet_ids.append(id_list[0])
+        # 2) Indices in the CONTACT SENSOR (for forces)
+        self._feet_ids_sensor = []
+        for name in foot_names:
+            id_list, _ = self._contact_sensor.find_bodies(name)
+            self._feet_ids_sensor.append(id_list[0])
 
         self.gait_indices = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
         self.clock_inputs = torch.zeros(self.num_envs, 4, dtype=torch.float, device=self.device, requires_grad=False)
-        self.desired_contact_sales = torch.zeros(self.num_envs, 4, dtype=torch.float, device=self.device, requires_grad=False)
+        self.desired_contact_states = torch.zeros(self.num_envs, 4, dtype=torch.float, device=self.device, requires_grad=False)
 
     @property
     def foot_positions_w(self) -> torch.Tensor:
@@ -172,7 +172,7 @@ class Rob6323Go2Env(DirectRLEnv):
         # todo: self_done
         rew_orient = torch.sum(torch.square(self.robot.data.projected_gravity_b[:, :2]), dim=1)
 
-        rew_lin_vel_z = torch.square(self.robot.data.root_lin_vel_b[:,2])
+        rew_lin_vel_z = torch.square(self.robot.data.root_lin_vel_b[: , 2])
 
         rew_dof_vel = torch.sum(torch.square(self.robot.data.joint_vel), dim=1) 
 
@@ -186,11 +186,11 @@ class Rob6323Go2Env(DirectRLEnv):
 
         target_height = 0.1
 
-        foot_z = foot_pos_w[:,:,2]
-        delta_z = foot_z-target_height
+        foot_z = foot_pos_w[: , : , 2]
+        delta_z = foot_z - target_height
 
-        rew_feet_clearance = torch.sum(torch.square(delta_z) * (1-contact_targets), dim=1)
-        robot_mass_approx = 12.0 # Standard Go2 mass roughly 12kg
+        rew_feet_clearance = torch.sum(torch.square(delta_z) * (1 - contact_targets), dim=1)
+        robot_mass_approx = 12.0  # Standard Go2 mass roughly 12kg
         gravity = 9.81
         desired_stance_force = (robot_mass_approx * gravity) / 4.0
 
@@ -292,7 +292,7 @@ class Rob6323Go2Env(DirectRLEnv):
         desired_ys_nom = torch.tensor([desired_stance_width / 2, -desired_stance_width / 2, desired_stance_width / 2, -desired_stance_width / 2], device=self.device).unsqueeze(0)
 
         desired_stance_length = 0.45
-        desired_xs_nom = torch.tensor([desired_stance_length / 2,  desired_stance_length / 2, -desired_stance_length / 2, -desired_stance_length / 2], device=self.device).unsqueeze(0)
+        desired_xs_nom = torch.tensor([desired_stance_length / 2, desired_stance_length / 2, -desired_stance_length / 2, -desired_stance_length / 2], device=self.device).unsqueeze(0)
 
         # raibert offsets
         phases = torch.abs(1.0 - (self.foot_indices * 2.0)) * 1.0 - 0.5
@@ -314,7 +314,7 @@ class Rob6323Go2Env(DirectRLEnv):
         reward = torch.sum(torch.square(err_raibert_heuristic), dim=(1, 2))
 
         return reward
-    
+   
     def _step_contact_targets(self):
         frequencies = 3.
         phases = 0.5
@@ -355,6 +355,8 @@ class Rob6323Go2Env(DirectRLEnv):
         self.desired_contact_states[:, 1] = smoothing_multiplier_FR
         self.desired_contact_states[:, 2] = smoothing_multiplier_RL
         self.desired_contact_states[:, 3] = smoothing_multiplier_RR
+
+        return self.desired_contact_states
 
     def _set_debug_vis_impl(self, debug_vis: bool):
         # set visibility of markers
